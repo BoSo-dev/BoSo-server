@@ -13,7 +13,12 @@ class AppError(Exception):
 
 
 def install_error_handlers(app: FastAPI):
-    def response(request, status, code, message, details=None):
+    def response(request, status, code, message, details=None, headers=None):
+        response_headers = dict(headers or {})
+        if status == 401 and not any(
+            name.lower() == "www-authenticate" for name in response_headers
+        ):
+            response_headers["WWW-Authenticate"] = "Bearer"
         return JSONResponse(
             status_code=status,
             content={
@@ -22,7 +27,7 @@ def install_error_handlers(app: FastAPI):
                 "details": details,
                 "request_id": getattr(request.state, "request_id", None),
             },
-            headers={"WWW-Authenticate": "Bearer"} if status == 401 else None,
+            headers=response_headers,
         )
 
     @app.exception_handler(AppError)
@@ -39,4 +44,6 @@ def install_error_handlers(app: FastAPI):
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException):
-        return response(request, exc.status_code, "HTTP_ERROR", str(exc.detail))
+        return response(
+            request, exc.status_code, "HTTP_ERROR", str(exc.detail), headers=exc.headers
+        )

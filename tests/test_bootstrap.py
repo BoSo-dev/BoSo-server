@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.exc import OperationalError
+from starlette.exceptions import HTTPException
 
 from app.core.config import Settings
 from app.core.db import get_db
@@ -41,6 +42,43 @@ def test_unknown_route_uses_error_contract(client):
     response = client.get("/missing")
     assert response.status_code == 404
     assert set(response.json()) == {"code", "message", "details", "request_id"}
+
+
+def test_method_not_allowed_preserves_allow_header(client):
+    response = client.post("/health/live")
+    assert response.status_code == 405
+    assert "GET" in response.headers["Allow"]
+
+
+def test_http_exception_preserves_retry_header():
+    application = create_app()
+
+    @application.get("/limited")
+    def limited():
+        raise HTTPException(429, "잠시 후 다시 시도해주세요.", headers={"Retry-After": "60"})
+
+    with TestClient(application) as client:
+        response = client.get("/limited")
+    assert response.status_code == 429
+    assert response.json()["code"] == "HTTP_ERROR"
+    assert response.headers["Retry-After"] == "60"
+
+
+@pytest.mark.parametrize(
+    ("headers", "expected_challenge"),
+    [(None, "Bearer"), ({"www-authenticate": 'Basic realm="boso"'}, 'Basic realm="boso"')],
+)
+def test_authentication_challenge_is_preserved_or_defaulted(headers, expected_challenge):
+    application = create_app()
+
+    @application.get("/protected")
+    def protected():
+        raise HTTPException(401, "인증이 필요합니다.", headers=headers)
+
+    with TestClient(application) as client:
+        response = client.get("/protected")
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == expected_challenge
 
 
 def test_validation_errors_do_not_echo_input():

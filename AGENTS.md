@@ -38,7 +38,7 @@
 
 ## 브랜치·커밋·PR
 
-- 기능마다 브랜치를 나눈다. 브랜치 이름과 초기 저장소 예외는 `docs/branch-strategy.md`를 따른다.
+- 기능마다 `develop`에서 작업 브랜치를 나누고 PR은 `develop`을 대상으로 한다. 배포 시 `develop → main` PR을 사용하며 상세 기준은 `docs/branch-strategy.md`를 따른다.
 - 개인별 작업 문서는 해당 작업의 맥락으로 사용한다. 다른 팀원의 기능 범위와 구현 가능 여부를 제한하는 공통 규칙으로 적용하지 않는다.
 - 공통 DB 모델·서비스 계약·환경변수·API 형식이 달라지면 관련 기능에 미치는 영향과 의존 PR을 설명한다. 같은 migration head에서 분기한 revision은 통합 시 정리한다.
 - 커밋 작업 시 `.agents/skills/boso-commit/SKILL.md`를 읽고 적용한다.

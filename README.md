@@ -48,6 +48,8 @@ GitHub CI는 같은 검사와 별도 PostgreSQL 마이그레이션·Docker 빌�
 
 ## 구조와 작업 규칙
 
+프로젝트 세팅과 기능 개발은 `작업 브랜치 → develop` PR로 통합하고, 배포는 `develop → main` PR로 진행합니다.
+
 ```text
 app/
   api/

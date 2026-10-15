@@ -8,7 +8,7 @@ description: Prepare, create, or update a BoSo pull request using its actual bra
 `AGENTS.md`, `docs/branch-strategy.md`, `.github/pull_request_template.md`를 읽는다. 요청이 본문 작성인지 실제 게시인지 구분하고 기존 사용자 허용 범위를 유지한다.
 
 1. `git status --short`, `git branch --show-current`, `git remote -v`로 대상을 확인한다. 원격 refs를 읽어 base·head를 확인한다. 원격 설정이나 인증 정보를 임의로 바꾸지 않는다.
-2. 초기 세팅은 `main`을 base로 한다. 이후에는 실제 존재하는 `develop`을 우선한다. 의존 브랜치 위의 PR이면 해당 브랜치를 base로 명시하고 의존 관계를 본문에 적는다. 존재하지 않는 base를 추정해 게시하지 않는다.
+2. 프로젝트 세팅·기능·일반 수정 PR은 `develop`을 base로 한다. 초기 `develop`이 없으면 작업 요청 범위 안에서 현재 `main` 기준으로 생성한 후 실제 ref를 확인한다. 의존 브랜치 위의 PR이면 해당 브랜치를 base로 명시하고 의존 관계를 본문에 적는다. 배포 PR은 `develop → main`을 사용하고, 사용자가 별도 대상을 지정하면 그 지시를 따른다. 존재하지 않는 base를 추정해 게시하지 않는다.
 3. `git log <base>..HEAD --oneline`과 `git diff <base>...HEAD`를 읽는다. 변경 전의 문제와 변경 후 동작을 중심으로 제목·본문을 작성한다. 대화 이력, 이전에 포기한 설계, 무관한 작업은 넣지 않는다.
 4. 관련 검증을 실행하고 실제 결과를 기록한다. 실행하지 않은 CI·Docker·Supabase 연결을 성공으로 표시하지 않는다. API·환경변수·마이그레이션 변경 및 배포 시 필요한 조치를 포함한다.
 5. 게시 요청이 없으면 제목·base·head·본문 초안을 제공하고 끝낸다. 게시 요청이 있으면 `gh auth status` 또는 사용 가능한 GitHub 연결을 확인한다. 인증이 없으면 초안까지 완성하고 필요한 인증을 보고한다.

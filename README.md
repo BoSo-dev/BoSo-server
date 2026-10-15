@@ -1,8 +1,8 @@
 # BoSo-server
 
-BoSo 회원·교통 정책 백엔드입니다. FastAPI, SQLAlchemy, Alembic, PostgreSQL을 사용하며 Supabase PostgreSQL 연동을 대상으로 합니다.
+교통카드 정책 변화 요약, 개인별 할 일 관리, 정책 상담 챗봇을 제공하는 BoSo의 백엔드 저장소입니다. FastAPI, SQLAlchemy, Alembic, PostgreSQL을 사용하며 Supabase PostgreSQL 연동을 대상으로 합니다.
 
-현재 `chore/project-setup` 단계는 공통 실행 환경과 작업 하네스를 제공합니다. 회원·정책 기능 API는 기능별 브랜치에서 추가합니다. 관리자 기능은 포함하지 않습니다.
+`chore/project-setup`은 모든 팀원이 함께 사용할 실행 환경, 전체 도메인의 모듈 틀, API 연결 지점, 작업 하네스를 제공합니다. 각 기능의 업무 로직과 테이블은 기능별 브랜치에서 추가합니다.
 
 ## 빠른 시작
 
@@ -50,9 +50,18 @@ GitHub CI는 같은 검사와 별도 PostgreSQL 마이그레이션·Docker 빌�
 
 ```text
 app/
-  api/           # 라우터, 현재는 health
+  api/
+    health.py    # 프로세스·DB 연결 상태
+    v1/router.py # 전체 기능 라우터 연결
   core/          # 설정·DB 세션·공통 오류
-  models/        # 이후 기능 모델 등록
+  models/        # Alembic에서 사용할 전체 모델 등록
+  modules/
+    auth/        # 회원가입·로그인·토큰
+    users/       # 내 정보·사용자 조건
+    policies/    # 정책·버전·출처·변경사항
+    todos/       # 개인별 할 일·체크리스트
+    chat/        # 정책 기반 챗봇·대화
+    notifications/ # 알림 조회·읽음·생성
   main.py        # 앱 조립·CORS·요청 ID
 alembic/         # migration 환경
 tests/           # 동작 검증
@@ -61,6 +70,9 @@ scripts/         # 공통 검사 진입점
 ```
 
 - [에이전트 작업 지침](AGENTS.md)
-- [현재 구현 범위와 후속 계획](docs/implementation-plan.md)
+- [전체 서버 구조와 모듈 연결](docs/architecture.md)
+- [팀 전체 구현 단계와 연동 기준](docs/implementation-plan.md)
 - [기능별 브랜치·커밋·PR 규칙](docs/branch-strategy.md)
 - [하네스 구성과 공식 문서](docs/harness.md)
+
+기능별 디렉터리에는 현재 빈 라우터만 연결되어 있습니다. `/api/v1/*` 업무 API가 구현된 상태는 아닙니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.

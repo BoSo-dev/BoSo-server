@@ -1,13 +1,12 @@
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
-from app.core.db import get_db
+from app.core.dependencies import DbSession
 from app.core.errors import AppError
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -25,7 +24,7 @@ def live():
 
 
 @router.get("/ready", response_model=HealthResponse)
-def ready(db: Session = Depends(get_db)):
+def ready(db: DbSession):
     """Readiness checks connectivity. Schema checks are added with domain migrations."""
     try:
         db.execute(text("SELECT 1"))

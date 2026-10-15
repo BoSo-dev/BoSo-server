@@ -2,11 +2,15 @@ import os
 
 import pytest
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session, sessionmaker
 
 from alembic import command
 from app.core.db import get_db, make_engine
+from app.core.dependencies import DbSession
+from app.main import create_app
 
 
 def test_alembic_environment_on_fresh_database(tmp_path, monkeypatch):
@@ -53,6 +57,37 @@ def test_database_session_commits_on_success(tmp_path, monkeypatch):
         next(dependency)
     with Session(engine) as verification:
         assert verification.scalar(text("SELECT COUNT(*) FROM probe")) == 1
+    engine.dispose()
+
+
+def test_commit_failure_returns_error_before_success_response(tmp_path, monkeypatch):
+    engine = make_engine(f"sqlite:///{tmp_path / 'failed-commit.db'}")
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE probe (value INTEGER NOT NULL)"))
+
+    class FailingCommitSession(Session):
+        def commit(self):
+            raise OperationalError("commit", {}, Exception("secret-driver-message"))
+
+    monkeypatch.setattr("app.core.db.get_engine", lambda: engine)
+    monkeypatch.setattr(
+        "app.core.db.sessionmaker",
+        lambda *args, **kwargs: sessionmaker(*args, class_=FailingCommitSession, **kwargs),
+    )
+    application = create_app()
+
+    @application.post("/transaction")
+    def insert(db: DbSession):
+        db.execute(text("INSERT INTO probe (value) VALUES (1)"))
+        return {"created": True}
+
+    with TestClient(application) as client:
+        response = client.post("/transaction")
+    assert response.status_code == 500
+    assert response.json()["code"] == "INTERNAL_ERROR"
+    assert "secret-driver-message" not in response.text
+    with Session(engine) as verification:
+        assert verification.scalar(text("SELECT COUNT(*) FROM probe")) == 0
     engine.dispose()
 
 

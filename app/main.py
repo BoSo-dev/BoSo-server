@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.health import router as health_router
+from app.api.v1.router import router as api_router
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 
@@ -18,13 +19,14 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title="BoSo API",
         version="0.1.0",
-        description="BoSo 회원 및 교통 정책 API. 현재 브랜치는 프로젝트 기반을 제공합니다.",
+        description="교통 정책 요약, 개인별 할 일, 정책 상담을 위한 BoSo 백엔드 API.",
         docs_url="/docs" if settings.app_env != "production" else None,
         redoc_url=None,
         openapi_url="/openapi.json" if settings.app_env != "production" else None,
     )
     install_error_handlers(application)
     application.include_router(health_router)
+    application.include_router(api_router)
 
     @application.middleware("http")
     async def request_context(request: Request, call_next):

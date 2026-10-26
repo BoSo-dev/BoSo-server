@@ -1,28 +1,53 @@
 from functools import lru_cache
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
+from app.core.database_url import resolve_database_url
 
 
 class Base(DeclarativeBase):
     pass
 
 
-def make_engine(url: str, *, pool_size: int = 5, max_overflow: int = 0):
-    options = {"check_same_thread": False} if url.startswith("sqlite") else {"connect_timeout": 5}
+def make_engine(
+    url: str | URL,
+    *,
+    pool_size: int = 5,
+    max_overflow: int = 0,
+    connect_timeout: int = 5,
+    pool_timeout: int = 10,
+    null_pool: bool = False,
+):
+    url = resolve_database_url(url)
+    sqlite = url.get_backend_name() == "sqlite"
+    options = (
+        {"check_same_thread": False}
+        if sqlite
+        else {
+            "connect_timeout": connect_timeout,
+            # Works with Direct/Session connections and transaction poolers alike.
+            "prepare_threshold": None,
+        }
+    )
     pool = (
         {}
-        if url.startswith("sqlite")
+        if sqlite
         else {
             "pool_size": pool_size,
             "max_overflow": max_overflow,
-            "pool_timeout": 10,
+            "pool_timeout": pool_timeout,
         }
     )
-    engine = create_engine(url, pool_pre_ping=True, connect_args=options, **pool)
-    if url.startswith("sqlite"):
+    if null_pool:
+        pool = {"poolclass": NullPool}
+    engine = create_engine(
+        url, pool_pre_ping=True, connect_args=options, hide_parameters=True, **pool
+    )
+    if sqlite:
 
         @event.listens_for(engine, "connect")
         def foreign_keys(connection, _):
@@ -35,9 +60,11 @@ def make_engine(url: str, *, pool_size: int = 5, max_overflow: int = 0):
 def get_engine():
     settings = get_settings()
     return make_engine(
-        settings.database_url.get_secret_value(),
+        settings.get_database_url(),
         pool_size=settings.db_pool_size,
         max_overflow=settings.db_max_overflow,
+        connect_timeout=settings.db_connect_timeout,
+        pool_timeout=settings.db_pool_timeout,
     )
 
 

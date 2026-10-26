@@ -15,12 +15,24 @@ from app.main import create_app
 
 def test_alembic_environment_on_fresh_database(tmp_path, monkeypatch):
     # Never migrate a database from the caller's .env in this unit test.
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'migration.db'}")
+    database_url = f"sqlite:///{tmp_path / 'migration.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", database_url)
     monkeypatch.setenv("APP_ENV", "test")
     from app.core.config import get_settings
 
+    def make_test_engine(url, **kwargs):
+        # Stop before connecting if either setting ever escapes test isolation.
+        if str(url) != database_url:
+            pytest.fail("Alembic must use the isolated test database", pytrace=False)
+        return make_engine(url, **kwargs)
+
+    monkeypatch.setattr("app.core.db.make_engine", make_test_engine)
     get_settings.cache_clear()
     try:
+        settings = get_settings()
+        assert str(settings.get_database_url()) == database_url
+        assert str(settings.get_database_url(migration=True)) == database_url
         config = Config("alembic.ini")
         command.upgrade(config, "head")
         command.check(config)

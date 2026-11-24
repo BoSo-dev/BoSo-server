@@ -10,6 +10,7 @@ from app.api.health import router as health_router
 from app.api.v1.router import router as api_router
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
+from app.modules.auth.dependencies import AuthRateLimiter
 
 logger = logging.getLogger("boso.http")
 
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if settings.app_env != "production" else None,
     )
     install_error_handlers(application)
+    application.state.auth_rate_limiter = AuthRateLimiter()
     application.include_router(health_router)
     application.include_router(api_router)
 
@@ -48,6 +50,9 @@ def create_app() -> FastAPI:
             )
         response.headers["X-Request-ID"] = request.state.request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path == "/api/v1/auth" or request.url.path.startswith("/api/v1/auth/"):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
         route = request.scope.get("route")
         logger.info(
             "request method=%s route=%s status=%s duration_ms=%.1f request_id=%s",
@@ -63,9 +68,9 @@ def create_app() -> FastAPI:
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
         expose_headers=["X-Request-ID"],
     )
     return application

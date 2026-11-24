@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,9 +19,37 @@ class Settings(BaseSettings):
     db_connect_timeout: int = Field(default=5, ge=1, le=60)
     db_pool_timeout: int = Field(default=10, ge=1, le=60)
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    auth_jwt_key: SecretStr | None = None
+    auth_csrf_key: SecretStr | None = None
+    auth_jwt_issuer: str = "boso-api"
+    auth_jwt_audience: str = "boso-web"
 
     @model_validator(mode="after")
     def production_settings(self):
+        for origin in self.cors_origins:
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.netloc
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or parsed.username
+                or parsed.password
+                or "*" in origin
+            ):
+                raise ValueError("CORS requires exact HTTP(S) origins without paths")
+            if self.app_env == "production" and parsed.scheme != "https":
+                raise ValueError("Production CORS requires HTTPS origins")
+        keys = [self.auth_jwt_key, self.auth_csrf_key]
+        if any(key is not None and len(key.get_secret_value().encode()) < 32 for key in keys):
+            raise ValueError("Authentication keys must each contain at least 32 bytes")
+        if all(keys) and keys[0].get_secret_value() == keys[1].get_secret_value():
+            raise ValueError("JWT and CSRF keys must be different")
+        if self.app_env == "production" and not all(keys):
+            raise ValueError("Production requires separate JWT and CSRF keys")
+        if not self.auth_jwt_issuer or not self.auth_jwt_audience:
+            raise ValueError("JWT issuer and audience must not be empty")
         runtime_url = resolve_database_url(self.database_url.get_secret_value())
         if self.migration_database_url is not None:
             resolve_database_url(self.migration_database_url.get_secret_value(), migration=True)

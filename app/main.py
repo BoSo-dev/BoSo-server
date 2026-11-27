@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
             "/api/v1/todos",
             "/api/v1/chat",
             "/api/v1/notifications",
+            "/api/v1/policies/for-me",
         } or request.url.path.startswith(
             (
                 "/api/v1/auth/",
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
                 "/api/v1/todos/",
                 "/api/v1/chat/",
                 "/api/v1/notifications/",
+                "/api/v1/policies/for-me/",
             )
         ):
             response.headers["Cache-Control"] = "no-store"

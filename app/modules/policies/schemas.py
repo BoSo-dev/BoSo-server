@@ -168,3 +168,64 @@ class PolicySnapshot(PolicyVersionInput):
     reference_date: date
     state: Literal["active", "ended", "expired"]
     actions: list[PolicyActionSnapshot]
+
+
+PolicyState = Literal["active", "ended", "expired", "superseded"]
+
+
+class PolicySummary(BaseModel):
+    policy_id: UUID
+    policy_key: str
+    version_id: UUID
+    version: int
+    title: str
+    category: Category
+    summary: str
+    state: PolicyState
+    is_current: bool
+    effective_from: date
+    effective_until: date | None
+    reviewed_on: date
+
+
+class PolicyDetail(PolicySummary):
+    lifecycle: Literal["active", "ended"]
+    content: str
+    change_summary: str
+    eligibility: EligibilityRules
+    sources: list[PolicySourceInput]
+    actions: list[PolicyActionSnapshot]
+
+
+class PolicyPage(BaseModel):
+    items: list[PolicySummary]
+    total: int
+    limit: int
+    offset: int
+    reference_date: date
+
+
+class PolicyCategory(BaseModel):
+    code: Category
+    label: str
+
+
+class PolicySources(BaseModel):
+    policy_id: UUID
+    version_id: UUID
+    sources: list[PolicySourceInput]
+
+
+class PolicyChanges(BaseModel):
+    before: PolicyDetail | None
+    after: PolicyDetail
+    changed_fields: list[str]
+
+
+class PersonalizedPolicy(PolicySummary):
+    eligibility_state: Literal["eligible", "not_eligible", "unknown"]
+    eligibility_reasons: list[str]
+
+
+class PersonalizedPolicyPage(PolicyPage):
+    items: list[PersonalizedPolicy]

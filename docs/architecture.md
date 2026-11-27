@@ -2,7 +2,7 @@
 
 ## 구성과 현재 상태
 
-하나의 FastAPI 서버 안에서 기능별 모듈을 나누는 구조다. 모든 기능이 설정·DB 세션·오류 처리·테스트·CI를 공유한다. 공통 세팅은 아래 모듈의 라우터를 연결하며, 현재 인증·내 정보·To-Do·챗봇·알림 API와 정책 데이터 내부 서비스를 구현했다. 정책 HTTP 조회와 외부 운영 환경은 별도 검증한다.
+하나의 FastAPI 서버 안에서 기능별 모듈을 나누는 구조다. 모든 기능이 설정·DB 세션·오류 처리·테스트·CI를 공유한다. 현재 인증·내 정보·정책 조회·To-Do·챗봇·알림 API와 정책 데이터 내부 서비스를 구현했다. 정책 HTTP 계약은 [정책 API](policy-api.md)에 정리했고 실제 외부 운영 환경은 별도 검증한다.
 
 | 모듈 | 책임 | 기본 API prefix |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ tests/                       # 공통·도메인·통합 검증
 - 알림 생성 시점과 재실행 방식은 To-Do·알림 기능에서 함께 정한다. 외부 발송·스케줄러 처리는 DB 반영 성공 여부와 중복 실행을 고려한다.
 - 챗봇의 설명과 대상 여부 판정을 구분한다. 검수된 정책과 허용된 사용자 조건만 외부 AI에 전달한다.
 
-현재 회원 인증과 교통 프로필의 ORM 모델·migration revision, 인증 API와 본인 정보 등록·조회·수정 API를 구현했다. 다른 모듈은 `app.modules.auth.dependencies.CurrentUser`에서 검증된 사용자를 받아 소유권을 제한한다. [인증 설계](auth-design.md)와 [내 정보 계약](user-profile.md)에 정책·API·DB 검증 경계를 기록했다. 정책 모듈은 [검수 파일 등록·버전 모델·내부 조회 서비스](policy-data.md)를 제공한다. [개인별 To-Do](personalized-todos.md)는 조건 판정·생성·재계산·완료 이력과 본인 조회·수정 API를 제공한다. [정책 상담](policy-chatbot.md)은 대화 저장·근거 검증·본인 관련 To-Do와 Gemini 클라이언트를 제공한다. [알림](in-app-notifications.md)은 새 할 일·마감 이벤트·읽음·예약 명령을 제공한다. 정책 HTTP 조회·외부 API 수집·실제 Gemini 연결·운영 예약 및 실제 Supabase 적용은 별도 작업이다. 후속 PR은 제공할 ID·스키마·서비스 입출력과 오류 동작을 문서화해 연동한다.
+현재 회원 인증과 교통 프로필의 ORM 모델·migration revision, 인증 API와 본인 정보 등록·조회·수정 API를 구현했다. 다른 모듈은 `app.modules.auth.dependencies.CurrentUser`에서 검증된 사용자를 받아 소유권을 제한한다. [인증 설계](auth-design.md)와 [내 정보 계약](user-profile.md)에 정책·API·DB 검증 경계를 기록했다. 정책 모듈은 [검수 파일 등록·버전 모델·내부 조회 서비스](policy-data.md)를 제공한다. [개인별 To-Do](personalized-todos.md)는 조건 판정·생성·재계산·완료 이력과 본인 조회·수정 API를 제공한다. [정책 상담](policy-chatbot.md)은 대화 저장·근거 검증·본인 관련 To-Do와 Gemini 클라이언트를 제공한다. [알림](in-app-notifications.md)은 새 할 일·마감 이벤트·읽음·예약 명령을 제공한다. [정책 HTTP 조회](policy-api.md)는 공개 목록·상세·이력·비교·공식 출처와 인증된 본인 맞춤 조회를 제공한다. 외부 API 수집·실제 Gemini 연결·운영 예약 및 실제 Supabase 적용은 별도 작업이다. 후속 PR은 제공할 ID·스키마·서비스 입출력과 오류 동작을 문서화해 연동한다.
 
 ## 공통 API·프론트엔드·검증
 

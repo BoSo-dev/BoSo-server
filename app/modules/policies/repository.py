@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.policies.models import Policy, PolicyVersion
@@ -49,3 +49,65 @@ def version_by_id(db: Session, version_id):
         .where(PolicyVersion.id == version_id)
         .options(selectinload(PolicyVersion.sources), selectinload(PolicyVersion.actions))
     )
+
+
+def catalog_statement(reference_date, *, q=None, category=None, state="active"):
+    ranked = (
+        select(
+            PolicyVersion.id.label("version_id"),
+            func.row_number()
+            .over(
+                partition_by=PolicyVersion.policy_id,
+                order_by=(PolicyVersion.effective_from.desc(), PolicyVersion.version.desc()),
+            )
+            .label("position"),
+        )
+        .join(Policy, Policy.id == PolicyVersion.policy_id)
+        .where(Policy.is_example.is_(False), PolicyVersion.effective_from <= reference_date)
+        .subquery()
+    )
+    statement = (
+        select(PolicyVersion, Policy.policy_key)
+        .join(Policy, Policy.id == PolicyVersion.policy_id)
+        .join(ranked, ranked.c.version_id == PolicyVersion.id)
+        .where(ranked.c.position == 1)
+    )
+    # Select the latest applicable version BEFORE search/category/state filtering.
+    # A retired or renamed version must never resurrect an older match.
+    if q is not None:
+        statement = statement.where(
+            or_(
+                PolicyVersion.title.icontains(q, autoescape=True),
+                PolicyVersion.summary.icontains(q, autoescape=True),
+                PolicyVersion.content.icontains(q, autoescape=True),
+            )
+        )
+    if category is not None:
+        statement = statement.where(PolicyVersion.category == category)
+    if state != "all":
+        actual_state = case(
+            (PolicyVersion.lifecycle == "ended", "ended"),
+            (PolicyVersion.effective_until < reference_date, "expired"),
+            else_="active",
+        )
+        statement = statement.where(actual_state == state)
+    return statement.order_by(PolicyVersion.effective_from.desc(), Policy.policy_key)
+
+
+def catalog_page(db, reference_date, *, q=None, category=None, state="active", limit=20, offset=0):
+    statement = catalog_statement(reference_date, q=q, category=category, state=state)
+    total = db.scalar(select(func.count()).select_from(statement.order_by(None).subquery()))
+    return db.execute(statement.limit(limit).offset(offset)).all(), total
+
+
+def visible_history(db, policy_id, reference_date):
+    return db.scalars(
+        select(PolicyVersion)
+        .join(Policy, Policy.id == PolicyVersion.policy_id)
+        .where(
+            Policy.id == policy_id,
+            Policy.is_example.is_(False),
+            PolicyVersion.effective_from <= reference_date,
+        )
+        .order_by(PolicyVersion.version.desc())
+    ).all()

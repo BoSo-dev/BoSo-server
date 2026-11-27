@@ -8,6 +8,8 @@
 
 설치 버전은 `uv.lock`, 실행 명령은 README, 모듈 경계는 [architecture.md](architecture.md), 검증 명령은 `scripts/check.py`가 기준이다. `/health/ready`는 현재 DB 연결만 확인하며 도메인 스키마 준비 여부를 보장하지 않는다.
 
+회원 인증은 [정책·DB 모델·revision·가입/로그인/인증 확인/갱신/로그아웃 API](auth-design.md)를 구현했다. 로컬 격리 테스트와 실제 Supabase 적용·운영 검증은 구분한다. PostgreSQL 테스트 DB가 없으면 마이그레이션·RLS·동시 갱신 실행 검증은 미완료다. 실제 Supabase migration은 별도 승인 없이 적용하지 않는다.
+
 ## 기능별 목표와 의존 관계
 
 | 영역 | 구현 목표 | 선행 기능 | 완료 기준 |

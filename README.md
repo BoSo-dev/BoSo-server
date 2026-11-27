@@ -22,7 +22,7 @@ uv run uvicorn app.main:app --reload --no-access-log
 - 프로세스 상태: `GET /health/live`
 - DB 연결 상태: `GET /health/ready`
 
-상태 확인 이외의 기능 API는 아직 없습니다. `/health/ready`는 DB 연결만 검사합니다. 현재 등록된 도메인 모델과 migration revision은 없습니다. `alembic current`는 접속 대상의 현재 revision을 조회하며, revision이 없으면 버전 번호 없이 연결 로그만 출력될 수 있습니다. 이는 실제 테이블 생성·변경 검증과 다릅니다.
+회원가입·로그인·인증 확인·갱신·현재 세션 로그아웃 API가 구현돼 있습니다. 실제 사용에는 인증 키와 스키마 적용이 필요하며 아래 인증 안내를 확인하세요. `/health/ready`는 DB 연결만 검사합니다. 회원·인증 세션·Refresh Token 모델과 첫 revision `20261030_0001`이 작성돼 있으며 실제 Supabase 적용은 별도 승인 대상입니다. `alembic current`는 적용된 revision을 조회하고 `alembic heads`는 로컬 revision을 확인합니다. 파일 존재나 접속 성공만으로 테이블 적용 완료를 의미하지 않습니다.
 
 Docker 전체 실행은 `docker compose up --build`입니다. 이 Compose 파일은 로컬 개발용이며 DB 포트는 localhost에만 공개합니다. `docker compose down`으로 중지하고 데이터는 볼륨에 보존합니다.
 
@@ -48,6 +48,8 @@ DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:URL_ENCODED_PASSWORD@POOL
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | 프로세스별 기본·추가 연결 수. 기본값 `5` / `0`, 허용 범위 `1..20` / `0..20` |
 | `DB_CONNECT_TIMEOUT` / `DB_POOL_TIMEOUT` | DB 연결 시도·풀 대기 제한(초). 기본값 `5` / `10`, 각각 `1..60` |
 | `CORS_ORIGINS` | 허용 프론트엔드 주소의 JSON 배열. 운영에서는 `*` 금지 |
+| `AUTH_JWT_KEY` / `AUTH_CSRF_KEY` | 각각 독립 생성한 최소 32바이트 비밀. 기본값 없음. 비밀번호·Supabase 키와 재사용 금지 |
+| `AUTH_JWT_ISSUER` / `AUTH_JWT_AUDIENCE` | Access Token 발급자·수신자. 기본값 `boso-api` / `boso-web` |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | 로컬 Compose DB 전용. Supabase 접속 비밀번호와 무관 |
 | `TEST_DATABASE_URL` | 선택적인 테스트 전용 PostgreSQL 주소. 테스트 프로세스 환경변수로 지정하며 실제 Supabase DB 사용 금지 |
 
@@ -91,9 +93,32 @@ uv run python -m pytest -q
 
 로컬 DB 변경 테스트는 임시 SQLite를 사용합니다. Alembic 테스트는 `DATABASE_URL`과 `MIGRATION_DATABASE_URL`을 모두 임시 DB로 덮어쓰고 연결 직전에 대상이 맞는지 확인합니다. URL 변환·SSL·접속 정보 비노출 테스트는 가짜 URI와 모의 객체를 사용하며 실제 Supabase에 접속하지 않습니다.
 
-`TEST_DATABASE_URL`을 테스트 프로세스 환경변수로 지정하면 테스트용 PostgreSQL의 `SELECT 1` 검사도 실행합니다. 지정하지 않으면 해당 테스트는 제외됩니다. `.env`에 적는 것만으로 이 선택적 테스트가 활성화되지는 않습니다. 로컬 테스트 통과를 실제 Supabase 마이그레이션·RLS 검증으로 간주하지 않습니다.
+`TEST_DATABASE_URL`을 테스트 프로세스 환경변수로 지정하면 PostgreSQL 검사도 실행합니다. 지정하지 않으면 해당 테스트는 제외됩니다. `.env`에 적는 것만으로 활성화되지는 않으며 실제 Supabase를 넣지 마세요. 인증 migration 테스트는 폐기 가능한 로컬/CI superuser 클러스터와 `_test`로 끝나는 접속 DB만 허용합니다. 생성한 임시 DB에서 upgrade·downgrade·RLS·권한을 검증하고 임시 DB·자신이 만든 검사 역할만 정리합니다. 원래 접속 DB의 테이블은 변경하지 않습니다. 상세 안전 조건과 미구현 항목은 [인증 설계](docs/auth-design.md)를 확인하세요. SQLite 테스트 통과를 실제 PostgreSQL·Supabase 검증으로 간주하지 않습니다.
 
 GitHub CI는 같은 검사와 별도 PostgreSQL 마이그레이션·Docker 빌드·컨테이너 상태 확인을 수행합니다. 개발 환경에 Docker 엔진이 실행 중이어야 컨테이너 검증이 가능합니다.
+
+## 회원 인증
+
+Supabase는 DB로만 사용하며 인증은 FastAPI에서 처리합니다. 실제 `.env`는 자동 수정하지 않습니다. `AUTH_JWT_KEY`와 `AUTH_CSRF_KEY`를 각각 독립적인 안전한 난수로 생성해 로컬 `.env` 또는 배포 비밀 저장소에 넣으세요. 각 키는 최소 32바이트이고 서로 달라야 합니다. 생성한 값은 채팅·로그·Git에 붙이지 마세요. 개발 환경에서 키가 없으면 상태 확인은 유지하지만 인증 API는 503을 반환하며, 운영 환경은 시작 시 설정을 거부합니다.
+
+호스트에서 실행하는 Uvicorn은 루트 `.env`를 읽지만 기본 Compose의 API 서비스는 인증 키를 자동 전달하지 않습니다. 컨테이너에서 인증을 사용하려면 실행 환경에 두 키를 별도로 주입해야 합니다. `.env` 전체를 이미지에 복사하거나 DB 비밀번호를 인증 키로 재사용하지 마세요.
+
+| API | 기능 |
+| --- | --- |
+| `POST /api/v1/auth/signup` | 이메일·비밀번호 회원가입, 201. 자동 로그인하지 않음 |
+| `POST /api/v1/auth/login` | 로그인, Access Token·CSRF 응답과 Refresh 쿠키 |
+| `GET /api/v1/auth/me` | Bearer Access Token으로 현재 사용자 확인 |
+| `POST /api/v1/auth/csrf` | 페이지 새로고침 후 CSRF 토큰 초기화 |
+| `POST /api/v1/auth/refresh` | Refresh Token 교체·Access Token 갱신 |
+| `POST /api/v1/auth/logout` | 현재 세션만 폐기하고 쿠키 삭제 |
+
+가입·로그인 JSON은 `email`, `password`이며 비밀번호는 15~128자입니다. 모든 인증 POST는 허용된 정확한 `Origin`과 `Content-Type: application/json`이 필수입니다. 프론트는 `credentials: "include"`로 쿠키를 전송하고 갱신·로그아웃에 `X-CSRF-Token`을 추가합니다. 새로고침 후 `/auth/csrf` → `/auth/refresh` 순으로 복구하며 갱신은 다중 탭까지 직렬화해야 합니다.
+
+Swagger에서 인증 POST를 직접 실행하려면 Swagger가 열린 API Origin(예: `http://localhost:8000`)도 개발용 `CORS_ORIGINS`에 명시해야 합니다. Host 헤더를 근거로 출처를 자동 허용하지 않습니다. CLI 요청도 허용 Origin 헤더를 직접 지정하세요.
+
+Access Token은 최대 15분, 세션·Refresh는 최초 로그인부터 최대 7일이며 갱신으로 연장되지 않습니다. 사용한 Refresh Token 재사용은 해당 세션을 폐기합니다. 개발 HTTP 쿠키와 운영 HTTPS `__Host-` 쿠키를 구분하며 운영은 정확한 HTTPS CORS Origin만 허용합니다. `SameSite=Lax`이므로 cross-site 배포는 추가 설계가 필요합니다. 인증 POST의 프로세스별 요청 제한은 운영 gateway의 공유 제한을 대신하지 않습니다.
+
+실제 Supabase에 테이블을 자동 생성하지 않습니다. 스키마 적용과 최소 권한 DB 계정·RLS·풀러→DB SSL 검증은 대상 확인·승인 후 별도 수행합니다. PostgreSQL 전용 테스트 URL이 없으면 마이그레이션·RLS·동시 갱신 검증을 skip하며 실제 Supabase로 대체하지 않습니다. 상세 정책과 다른 모듈의 `CurrentUser` 연동은 [인증 설계](docs/auth-design.md)를 참고하세요.
 
 ## 구조와 작업 규칙
 
@@ -123,7 +148,8 @@ scripts/         # 공통 검사 진입점
 - [에이전트 작업 지침](AGENTS.md)
 - [전체 서버 구조와 모듈 연결](docs/architecture.md)
 - [팀 전체 구현 단계와 연동 기준](docs/implementation-plan.md)
+- [회원 인증 정책·DB 모델·migration 검증](docs/auth-design.md)
 - [기능별 브랜치·커밋·PR 규칙](docs/branch-strategy.md)
 - [하네스 구성과 공식 문서](docs/harness.md)
 
-기능별 디렉터리에는 현재 빈 라우터만 연결되어 있습니다. `/api/v1/*` 업무 API가 구현된 상태는 아닙니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
+인증 모듈에는 API·서비스·repository·보안·쿠키·스키마·모델을 구현했고 나머지 도메인은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.

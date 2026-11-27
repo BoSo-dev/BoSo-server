@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.orm import Session
@@ -52,13 +53,13 @@ def test_sqlite_migration_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
     config = migration_config(monkeypatch, url)
     engine = make_engine(url)
     try:
-        command.upgrade(config, "head")
+        command.upgrade(config, REVISION)
         assert AUTH_TABLES <= set(inspect(engine).get_table_names())
         with engine.connect() as connection:
             assert MigrationContext.configure(connection).get_current_heads() == (REVISION,)
         command.downgrade(config, "base")
         assert not AUTH_TABLES.intersection(inspect(engine).get_table_names())
-        command.upgrade(config, "head")
+        command.upgrade(config, REVISION)
         assert AUTH_TABLES <= set(inspect(engine).get_table_names())
     finally:
         engine.dispose()
@@ -73,7 +74,7 @@ def test_offline_migration_sql_targets_only_auth_tables(dialect, monkeypatch):
     )
     output = StringIO()
     config = migration_config(monkeypatch, url, output)
-    command.upgrade(config, "head", sql=True)
+    command.upgrade(config, REVISION, sql=True)
     sql = output.getvalue()
     assert "auth.users" not in sql
     assert "CREATE ROLE" not in sql
@@ -249,7 +250,9 @@ def test_postgres_upgrade_check_downgrade_preserves_supabase_auth_schema(
     command.check(config)
     assert AUTH_TABLES <= set(inspect(engine).get_table_names(schema="public"))
     with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_heads() == (REVISION,)
+        assert MigrationContext.configure(connection).get_current_heads() == (
+            ScriptDirectory.from_config(config).get_current_head(),
+        )
     command.downgrade(config, "base")
     assert not AUTH_TABLES.intersection(inspect(engine).get_table_names(schema="public"))
     with engine.connect() as connection:

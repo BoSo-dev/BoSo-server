@@ -154,9 +154,11 @@ scripts/         # 공통 검사 진입점
 - [기능별 브랜치·커밋·PR 규칙](docs/branch-strategy.md)
 - [하네스 구성과 공식 문서](docs/harness.md)
 
-인증·내 정보 모듈에는 API·서비스·repository·스키마·모델을 구현했습니다. 정책 모듈은 버전·출처·대상 조건·필요 행동 모델과 검수 JSON 등록 CLI를 제공하며 HTTP 조회 API는 후속 작업입니다. To-Do·챗봇·알림은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
+인증·내 정보·To-Do 모듈에는 API·서비스·repository·스키마·모델을 구현했습니다. 정책 모듈은 버전·출처·대상 조건·필요 행동 모델과 검수 JSON 등록 CLI를 제공하며 HTTP 조회 API는 후속 작업입니다. 챗봇·알림은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
 
 ## 정책 데이터
+
+개인별 할 일은 [To-Do API·재계산 규칙](docs/personalized-todos.md)을 따른다. 정책·조건 확인 후 명시적으로 동기화하며 완료 이력을 보존한다. revision `20261127_0100`은 실제 Supabase에 자동 적용하지 않는다.
 
 공식 출처와 검수 기준은 [데이터.md](데이터.md), 저장 구조·모듈 계약·등록 방법은 [정책 데이터 구현](docs/policy-data.md)에 정리했습니다. 실제 정책과 구분한 [예시 JSON](examples/policies.example.json)을 다음 명령으로 검증할 수 있습니다. 기본 실행은 DB에 접속하지 않습니다.
 

@@ -50,9 +50,11 @@ def create_app() -> FastAPI:
             )
         response.headers["X-Request-ID"] = request.state.request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
-        if request.url.path in {"/api/v1/auth", "/api/v1/me"} or request.url.path.startswith(
-            ("/api/v1/auth/", "/api/v1/me/")
-        ):
+        if request.url.path in {
+            "/api/v1/auth",
+            "/api/v1/me",
+            "/api/v1/todos",
+        } or request.url.path.startswith(("/api/v1/auth/", "/api/v1/me/", "/api/v1/todos/")):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
         route = request.scope.get("route")

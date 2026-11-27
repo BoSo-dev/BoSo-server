@@ -2,6 +2,7 @@
 
 from app.modules.auth.models import AuthSession, RefreshToken, User
 from app.modules.policies.models import Policy, PolicyAction, PolicySource, PolicyVersion
+from app.modules.todos.models import UserTodo
 from app.modules.users.models import UserProfile, UserTransportCard, UserTransportMode
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     "PolicyVersion",
     "RefreshToken",
     "User",
+    "UserTodo",
     "UserProfile",
     "UserTransportCard",
     "UserTransportMode",

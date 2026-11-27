@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "policies": [
+    {
+      "policy_key": "example-transport-support",
+      "is_example": true,
+      "version": 1,
+      "title": "테스트용 교통 지원 정책 — 실제 정책 아님",
+      "category": "transport_support",
+      "summary": "파일 형식을 설명하기 위한 가상의 정책입니다.",
+      "content": "실제 혜택이나 지원 자격을 의미하지 않습니다.",
+      "change_summary": "예시 최초 등록",
+      "lifecycle": "active",
+      "effective_from": "2026-01-01",
+      "effective_until": "2026-12-31",
+      "reviewed_on": "2026-11-27",
+      "reviewed_by": "example-reviewer",
+      "eligibility": {
+        "age_min": 19,
+        "age_max": null,
+        "region_codes": ["seoul"],
+        "transport_cards": [],
+        "transport_modes": [],
+        "additional_requirements": ["실제 운영에서는 별도 증빙을 확인해야 합니다."],
+        "requires_confirmation": true
+      },
+      "sources": [
+        {
+          "source_key": "example-source",
+          "kind": "example",
+          "url": "https://example.invalid/policy",
+          "title": "테스트용 출처 — 공식 자료 아님",
+          "external_id": null,
+          "checked_on": "2026-11-27",
+          "usage_note": "직접 작성한 테스트 데이터입니다.",
+          "reuse_confirmed": true
+        }
+      ],
+      "actions": [
+        {
+          "action_key": "check-application",
+          "title": "테스트용 신청 절차 확인",
+          "description": "실제 신청 안내가 아닌 형식 예시입니다.",
+          "due_date": null,
+          "url": "https://example.invalid/apply"
+        }
+      ]
+    }
+  ]
+}

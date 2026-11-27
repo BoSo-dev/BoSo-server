@@ -56,7 +56,7 @@ tests/                       # 공통·도메인·통합 검증
 - 알림 생성 시점과 재실행 방식은 To-Do·알림 기능에서 함께 정한다. 외부 발송·스케줄러 처리는 DB 반영 성공 여부와 중복 실행을 고려한다.
 - 챗봇의 설명과 대상 여부 판정을 구분한다. 검수된 정책과 허용된 사용자 조건만 외부 AI에 전달한다.
 
-현재 회원 인증과 교통 프로필의 ORM 모델·migration revision, 인증 API와 본인 정보 등록·조회·수정 API를 구현했다. 다른 모듈은 `app.modules.auth.dependencies.CurrentUser`에서 검증된 사용자를 받아 소유권을 제한한다. [인증 설계](auth-design.md)와 [내 정보 계약](user-profile.md)에 정책·API·DB 검증 경계를 기록했다. 실제 Supabase 적용과 정책·To-Do·챗봇·알림 서비스·외부 호출은 아직 완료되지 않았다. 후속 PR은 제공할 ID·스키마·서비스 입출력과 오류 동작을 문서화해 연동한다.
+현재 회원 인증과 교통 프로필의 ORM 모델·migration revision, 인증 API와 본인 정보 등록·조회·수정 API를 구현했다. 다른 모듈은 `app.modules.auth.dependencies.CurrentUser`에서 검증된 사용자를 받아 소유권을 제한한다. [인증 설계](auth-design.md)와 [내 정보 계약](user-profile.md)에 정책·API·DB 검증 경계를 기록했다. 정책 모듈은 [검수 파일 등록·버전 모델·내부 조회 서비스](policy-data.md)를 제공한다. 정책 HTTP 조회·개인별 To-Do·챗봇·알림·외부 API 수집 및 실제 Supabase 적용은 아직 완료되지 않았다. 후속 PR은 제공할 ID·스키마·서비스 입출력과 오류 동작을 문서화해 연동한다.
 
 ## 공통 API·프론트엔드·검증
 

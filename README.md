@@ -122,6 +122,8 @@ Access Token은 최대 15분, 세션·Refresh는 최초 로그인부터 최대 7
 
 ## 구조와 작업 규칙
 
+내 정보 기능은 `GET/PATCH /api/v1/me`, `GET /api/v1/me/options`를 제공합니다. Bearer 인증으로 본인의 거주 지역·생년월일·교통카드·주 이용 수단을 조회·부분 수정합니다. 미등록 조회는 빈 상태를 반환하며 DB를 변경하지 않습니다. 프로필 모델과 revision `20261127_0002`는 인증 revision `20261030_0001` 다음에 적용하도록 작성했고 실제 Supabase에는 적용하지 않았습니다. 상세 코드·개인화 서비스 계약·검증 경계는 [내 정보 API](docs/user-profile.md)를 확인하세요.
+
 프로젝트 세팅과 기능 개발은 `작업 브랜치 → develop` PR로 통합하고, 배포는 `develop → main` PR로 진행합니다.
 
 ```text
@@ -152,4 +154,4 @@ scripts/         # 공통 검사 진입점
 - [기능별 브랜치·커밋·PR 규칙](docs/branch-strategy.md)
 - [하네스 구성과 공식 문서](docs/harness.md)
 
-인증 모듈에는 API·서비스·repository·보안·쿠키·스키마·모델을 구현했고 나머지 도메인은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
+인증·내 정보 모듈에는 API·서비스·repository·스키마·모델을 구현했고 정책·To-Do·챗봇·알림은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.

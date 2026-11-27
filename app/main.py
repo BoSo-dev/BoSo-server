@@ -54,7 +54,10 @@ def create_app() -> FastAPI:
             "/api/v1/auth",
             "/api/v1/me",
             "/api/v1/todos",
-        } or request.url.path.startswith(("/api/v1/auth/", "/api/v1/me/", "/api/v1/todos/")):
+            "/api/v1/chat",
+        } or request.url.path.startswith(
+            ("/api/v1/auth/", "/api/v1/me/", "/api/v1/todos/", "/api/v1/chat/")
+        ):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
         route = request.scope.get("route")

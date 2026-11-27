@@ -154,4 +154,14 @@ scripts/         # 공통 검사 진입점
 - [기능별 브랜치·커밋·PR 규칙](docs/branch-strategy.md)
 - [하네스 구성과 공식 문서](docs/harness.md)
 
-인증·내 정보 모듈에는 API·서비스·repository·스키마·모델을 구현했고 정책·To-Do·챗봇·알림은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
+인증·내 정보 모듈에는 API·서비스·repository·스키마·모델을 구현했습니다. 정책 모듈은 버전·출처·대상 조건·필요 행동 모델과 검수 JSON 등록 CLI를 제공하며 HTTP 조회 API는 후속 작업입니다. To-Do·챗봇·알림은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
+
+## 정책 데이터
+
+공식 출처와 검수 기준은 [데이터.md](데이터.md), 저장 구조·모듈 계약·등록 방법은 [정책 데이터 구현](docs/policy-data.md)에 정리했습니다. 실제 정책과 구분한 [예시 JSON](examples/policies.example.json)을 다음 명령으로 검증할 수 있습니다. 기본 실행은 DB에 접속하지 않습니다.
+
+```powershell
+uv run python -m scripts.import_policies examples/policies.example.json
+```
+
+`--apply`를 명시하면 `DATABASE_URL`의 DB에 배치 전체를 트랜잭션으로 등록합니다. 스키마를 자동 생성하지 않습니다. 대상·권한을 확인하기 전에는 실제 Supabase에서 실행하지 마세요. revision `20261127_0003`은 네 정책 테이블과 PostgreSQL RLS 기본 차단을 추가하며 실제 Supabase에는 적용하지 않았습니다. API 수집기는 아직 구현하지 않았으므로 `PUBLIC_DATA_API_KEY`는 이 CLI에서 사용하지 않습니다.

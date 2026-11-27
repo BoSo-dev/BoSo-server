@@ -154,9 +154,11 @@ scripts/         # 공통 검사 진입점
 - [기능별 브랜치·커밋·PR 규칙](docs/branch-strategy.md)
 - [하네스 구성과 공식 문서](docs/harness.md)
 
-인증·내 정보·To-Do·챗봇 모듈에는 API·서비스·repository·스키마·모델을 구현했습니다. 정책 모듈은 버전·출처·대상 조건·필요 행동 모델과 검수 JSON 등록 CLI를 제공하며 HTTP 조회 API는 후속 작업입니다. 알림은 아직 빈 라우터입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
+인증·내 정보·To-Do·챗봇·알림 모듈에는 API·서비스·repository·스키마·모델을 구현했습니다. 정책 모듈은 버전·출처·대상 조건·필요 행동 모델과 검수 JSON 등록 CLI를 제공하며 HTTP 조회 API는 후속 작업입니다. 개인별 담당 계획은 `docs/workstreams/`에 분리해 관리하며 다른 팀원의 개발 범위를 제한하지 않습니다.
 
 ## 정책 데이터
+
+알림함은 [알림 API·중복 방지·예약 실행](docs/in-app-notifications.md)을 따릅니다. 기본 예약 명령은 DB에 접속하지 않고 실제 실행에는 명시적인 --apply가 필요합니다.
 
 상담은 [챗봇 API·근거·Gemini 설정](docs/policy-chatbot.md)을 따릅니다. 키와 모델은 기본값이 없으며 실제 외부 연결은 별도 검증합니다. 대화는 본인만 조회하며 같은 request_id 재전송을 중복 저장하지 않습니다.
 

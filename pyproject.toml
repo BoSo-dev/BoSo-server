@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "BoSo transport policy, personal tasks, and policy assistance backend"
 requires-python = ">=3.12,<3.15"
 dependencies = [
+  "boso-ai @ git+https://github.com/BoSo-dev/BoSo-Ai.git@10a3c21476939c670a9df3bcec4af8d121abe55b",
   "fastapi>=0.121,<1",
   "uvicorn[standard]>=0.34,<1",
   "sqlalchemy>=2.0.36,<2.1",

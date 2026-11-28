@@ -5,12 +5,13 @@ from unittest.mock import Mock
 from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
+import boso_ai.llm_client as ai_client
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from test_auth_api import auth_api as auth_api
 from test_policy_data import policy_item as policy_item
-from test_todos import TODAY, seed_todo_graph
+from test_todos import TODAY, seed_policy, seed_todo_graph
 from test_todos import todo_date as todo_date
 from test_todos import todo_engine as todo_engine
 from test_user_profile import profile_api as profile_api
@@ -20,6 +21,28 @@ from app.models import ChatTurn, PolicyVersion
 from app.modules.chat import client, service
 from app.modules.chat.config import ChatSettings
 from app.modules.chat.schemas import ConversationCreate, ModelReply, TurnRequest
+
+
+@pytest.fixture
+def provider_payload():
+    return {
+        "question": "가상 정책 안내를 확인하고 싶어요.",
+        "conversation": [],
+        "policies": [
+            {
+                "version_id": str(uuid4()),
+                "title": "가상 정책",
+                "summary": "가상 안내",
+                "content": "직접 작성한 테스트 자료입니다.",
+                "state": "active",
+                "effective_from": "2026-11-01",
+                "effective_until": None,
+                "assessment": {"state": "eligible", "reasons": []},
+                "actions": [],
+                "source_keys": ["test_notice"],
+            }
+        ],
+    }
 
 
 @pytest.fixture
@@ -178,24 +201,40 @@ def test_chat_api_validation_and_private_cache(profile_api):
         ),
         (URLError("secret"), "CHAT_PROVIDER_UNAVAILABLE"),
         (TimeoutError("secret"), "CHAT_PROVIDER_UNAVAILABLE"),
-        (ValueError("secret"), "CHAT_PROVIDER_INVALID_RESPONSE"),
+        (b"secret invalid JSON", "CHAT_PROVIDER_INVALID_RESPONSE"),
     ],
 )
-def test_provider_errors_never_expose_internal_values(monkeypatch, failure, code):
+def test_provider_errors_never_expose_internal_values(monkeypatch, failure, code, provider_payload):
     class Opener:
         def open(self, *args, **kwargs):
+            if isinstance(failure, bytes):
+                return BytesIO(failure)
             raise failure
 
-    monkeypatch.setattr(client, "build_opener", lambda *args: Opener())
+    monkeypatch.setattr(ai_client, "build_opener", lambda *args: Opener())
     settings = ChatSettings(_env_file=None, gemini_api_key="secret-key", gemini_model="gemini-test")
     with pytest.raises(AppError) as error:
-        client.generate(settings, {})
+        client.generate(settings, provider_payload)
     assert error.value.code == code
     assert "secret" not in error.value.message
 
 
-def test_provider_request_uses_fixed_tls_host_header_and_bounded_json(monkeypatch):
-    body = json.dumps({"answer": "ok", "references": [], "needs_more_info": True})
+@pytest.mark.parametrize("max_output_tokens", [128, 1024, 2048])
+def test_provider_request_uses_fixed_tls_host_header_and_bounded_json(
+    monkeypatch, provider_payload, max_output_tokens
+):
+    body = json.dumps(
+        {
+            "answer": "ok",
+            "references": [
+                {
+                    "version_id": provider_payload["policies"][0]["version_id"],
+                    "source_key": "test_notice",
+                }
+            ],
+            "needs_more_info": True,
+        }
+    )
     raw = json.dumps(
         {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": body}]}}]}
     ).encode()
@@ -208,12 +247,18 @@ def test_provider_request_uses_fixed_tls_host_header_and_bounded_json(monkeypatc
         )
         assert "secret-key" not in request.full_url
         assert request.get_header("X-goog-api-key") == "secret-key"
-        assert timeout == 10
+        assert 0 < timeout <= 10
+        assert json.loads(request.data)["generationConfig"]["maxOutputTokens"] == max_output_tokens
         return response
 
-    monkeypatch.setattr(client, "build_opener", lambda *args: SimpleNamespace(open=open_request))
-    settings = ChatSettings(_env_file=None, gemini_api_key="secret-key", gemini_model="gemini-test")
-    assert client.generate(settings, {}).answer == "ok"
+    monkeypatch.setattr(ai_client, "build_opener", lambda *args: SimpleNamespace(open=open_request))
+    settings = ChatSettings(
+        _env_file=None,
+        gemini_api_key="secret-key",
+        gemini_model="gemini-test",
+        gemini_max_output_tokens=max_output_tokens,
+    )
+    assert client.generate(settings, provider_payload).answer == "ok"
 
 
 def test_rate_limit_is_bounded_and_enforced():
@@ -226,3 +271,77 @@ def test_rate_limit_is_bounded_and_enforced():
     for _ in range(4100):
         limiter.check(uuid4())
     assert len(limiter.entries) == 4096
+
+
+def test_chat_api_uses_installed_ai_once_and_preserves_rollback(
+    profile_api, policy_item, monkeypatch
+):
+    client_api, engine, _, headers = profile_api
+    monkeypatch.setattr(service, "today_kst", lambda: TODAY)
+    monkeypatch.setattr(service, "limiter", service.ChatLimiter())
+    settings = ChatSettings(_env_file=None, gemini_api_key="test-only", gemini_model="gemini-test")
+    monkeypatch.setattr(service, "get_chat_settings", lambda: settings)
+    assert (
+        client_api.patch(
+            "/api/v1/me", json={"birth_date": "2000-01-01", "region_code": "seoul"}, headers=headers
+        ).status_code
+        == 200
+    )
+    with Session(engine) as db, db.begin():
+        _, policy_id = seed_policy(db, policy_item)
+    assert client_api.post("/api/v1/todos/sync", json={}, headers=headers).status_code == 200
+    requests = []
+    fail_provider = False
+
+    class Opener:
+        def open(self, request, timeout):
+            requests.append(request)
+            if fail_provider:
+                raise HTTPError("https://example.invalid", 503, "secret", {}, BytesIO(b"secret"))
+            sent = json.loads(json.loads(request.data)["contents"][0]["parts"][0]["text"])
+            assert "birth_date" not in json.dumps(sent)
+            policy = sent["policies"][0]
+            answer = {
+                "answer": "가상 테스트 정책의 확인 절차입니다.",
+                "references": [
+                    {"version_id": policy["version_id"], "source_key": policy["source_keys"][0]}
+                ],
+                "needs_more_info": False,
+            }
+            return BytesIO(
+                json.dumps(
+                    {
+                        "candidates": [
+                            {
+                                "finishReason": "STOP",
+                                "content": {"parts": [{"text": json.dumps(answer)}]},
+                            }
+                        ]
+                    }
+                ).encode()
+            )
+
+    monkeypatch.setattr(ai_client, "build_opener", lambda *args: Opener())
+    conversation = client_api.post("/api/v1/chat/conversations", json={}, headers=headers).json()
+    url = f"/api/v1/chat/conversations/{conversation['id']}/messages"
+    body = {
+        "request_id": str(uuid4()),
+        "question": "가상 정책 안내",
+        "policy_ids": [str(policy_id)],
+    }
+    first = client_api.post(url, json=body, headers=headers)
+    assert first.status_code == 201, first.text
+    result = first.json()
+    assert result["external_used"]
+    assert result["sources"][0]["url"] == "https://example.invalid/policy"
+    assert result["related_todos"][0]["policy_id"] == str(policy_id)
+    repeated = client_api.post(url, json=body, headers=headers)
+    assert repeated.json()["id"] == result["id"]
+    assert len(requests) == 1
+    fail_provider = True
+    failed = client_api.post(url, json={**body, "request_id": str(uuid4())}, headers=headers)
+    assert failed.status_code == 503
+    assert failed.json()["code"] == "CHAT_PROVIDER_UNAVAILABLE"
+    assert "secret" not in failed.text
+    assert len(requests) == 2
+    assert client_api.get(url, headers=headers).json()["total"] == 1

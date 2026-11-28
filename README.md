@@ -164,6 +164,8 @@ scripts/         # 공통 검사 진입점
 
 상담은 [챗봇 API·근거·Gemini 설정](docs/policy-chatbot.md)을 따릅니다. 키와 모델은 기본값이 없으며 실제 외부 연결은 별도 검증합니다. 대화는 본인만 조회하며 같은 request_id 재전송을 중복 저장하지 않습니다.
 
+챗봇 모델 호출은 버전이 고정된 BoSo-Ai 패키지를 사용합니다. `uv sync --locked --extra dev`로 설치하며 기존 GEMINI_API_KEY·GEMINI_MODEL 설정을 그대로 사용합니다. 기존 API·DB 구조는 유지하고 요약·To-Do 후보는 검수 후 기존 정책 등록 경로에 반영합니다. 상세 의존 커밋과 검증 경계는 챗봇 문서를 확인하세요.
+
 개인별 할 일은 [To-Do API·재계산 규칙](docs/personalized-todos.md)을 따른다. 정책·조건 확인 후 명시적으로 동기화하며 완료 이력을 보존한다. revision `20261127_0100`은 실제 Supabase에 자동 적용하지 않는다.
 
 공식 출처와 검수 기준은 [데이터.md](데이터.md), 저장 구조·모듈 계약·등록 방법은 [정책 데이터 구현](docs/policy-data.md)에 정리했습니다. 실제 정책과 구분한 [예시 JSON](examples/policies.example.json)을 다음 명령으로 검증할 수 있습니다. 기본 실행은 DB에 접속하지 않습니다.

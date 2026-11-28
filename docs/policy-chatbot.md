@@ -31,7 +31,11 @@ related_todos는 인증 사용자의 관련 정책에 속하는 보관되지 않
 
 루트 .env 또는 배포 비밀 저장소에 GEMINI_API_KEY와 GEMINI_MODEL을 직접 설정한다. 기본 모델·키는 없으며 실제 호출 가능한 모델 이름은 Gemini 프로젝트에서 선택한다. 기존 .env를 덮어쓰지 않는다. 환경변수를 바꾸면 프로세스를 재시작한다.
 
-표준 라이브러리 HTTPS 클라이언트를 사용한다. 호스트는 Google 공식 API로 고정하고 인증키는 x-goog-api-key 헤더에만 넣는다. redirect를 따라가지 않는다. timeout 기본 10초(최대 30초), 응답 최대 64 KiB, 출력 토큰 기본 1024(최대 2048)다. 키·모델 미설정은 503, upstream 장애·429·timeout은 고정된 503 오류, 잘못된/불완전 응답은 502다. 드라이버·외부 응답 원문·키를 오류에 포함하지 않는다.
+`app/modules/chat/client.py`는 고정된 BoSo-Ai 패키지의 공통 호출부로 연결한다. 호스트는 Google 공식 API로 고정하고 인증키는 x-goog-api-key 헤더에만 넣는다. redirect를 따라가지 않는다. timeout 기본 10초(최대 30초), 공통 호출부의 응답 크기 제한은 256 KiB, 출력 토큰 기본 1024(128~2048)다. 서버 설정을 그대로 전달하고 DB 잠금 안에서는 최초 1회만 요청한다. 키·모델 미설정은 503, upstream 장애·429·timeout은 기존 고정 503 오류, 잘못된/불완전/차단 응답은 기존 502 오류로 변환한다. 드라이버·외부 응답 원문·키를 오류에 포함하지 않는다.
+
+AI 패키지는 `10a3c21476939c670a9df3bcec4af8d121abe55b` 커밋으로 pyproject.toml·uv.lock에 고정했다. 선행 AI 변경은 [BoSo-Ai PR #9](https://github.com/BoSo-dev/BoSo-Ai/pull/9)다. 이 서버 브랜치는 해당 커밋을 사용하므로 develop/main의 향후 변경으로 호출 동작이 자동 변경되지 않는다. Docker 설치에는 Git 소스 의존성을 받기 위한 git·ca-certificates를 포함한다.
+
+공개 API·DB 스키마·대화 저장·사용자별 판정·related_todos는 유지한다. 요약·To-Do 후보는 AI에서 생성한 뒤 사람이 검수한 등록 JSON으로 기존 scripts/import_policies.py를 사용한다. 개인별 할 일 동기화나 정책 GET에서 AI를 자동 호출하지 않는다.
 
 외부 호출은 사용자별 프로세스당 분당 10회로 제한하고 메모리 항목은 4096개로 제한한다. 운영에서는 여러 worker에 공유되는 gateway quota와 프로젝트 사용량 제한이 필요하다. 실제 비용·사용 한도·가용 모델은 공급자 계정 설정을 따른다.
 
@@ -42,3 +46,5 @@ related_todos는 인증 사용자의 관련 정책에 속하는 보관되지 않
 chat_conversations는 사용자 FK CASCADE, chat_turns는 대화 FK CASCADE다. 요청 ID·turn 번호 UNIQUE와 해시/번호 CHECK를 적용한다. RLS 기본 차단·클라이언트 직접 권한 회수를 적용하며 실제 Supabase의 역할이나 auth.users를 변경하지 않는다.
 
 기능 검사는 `uv run python -m pytest tests/test_chat.py tests/test_chat_migrations.py`, 전체 검사는 `uv run python scripts/check.py`다. provider 대역으로 정상 응답·가짜 근거·장애·비밀 비노출을 확인한다. 실제 Gemini 호출·모델 가용성·과금·실제 Supabase 적용은 미검증이며 ZIP의 VALIDATION.md에 실행 범위를 기록한다.
+
+AI 연결 변경의 로컬 전체 검사에서는 402개가 통과했고 TEST_DATABASE_URL 미설정으로 PostgreSQL 관련 51개가 skip되었다. 설치된 AI 패키지의 고정 커밋도 확인했다. 실제 JWT로 인증한 메시지 API가 패키지를 호출하고, 동일 request_id의 중복 호출 방지·출처/관련 할 일·제공자 오류·저장 롤백을 유지하는 테스트를 포함한다. 모델 통신은 대역이며 Docker 데몬 미실행으로 컨테이너 빌드는 확인하지 않았다.
